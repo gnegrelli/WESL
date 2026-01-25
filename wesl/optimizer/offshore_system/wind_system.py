@@ -3,7 +3,6 @@ import openmdao.api as om
 import xarray as xr
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
-from wesl.optimizer.interarray.farmrepo import g1
 
 # Heuristic Wrapper Valotta Rodrigues Perez 2024 (Mauricio Souza DTU thesis 2022)
 from wesl.optimizer.interarray.interface import heuristic_wrapper

@@ -1,6 +1,4 @@
 ##########################################################################################
-import matplotlib.pyplot as plt
-
 # WESL imports
 from wesl.offshore_wind_farms.vineyard_wind import x_vineyard, y_vineyard, boundary_vineyard, SG_14222, VineyardWind
 from wesl.optimizer.constraints.wind_farm_constraints import BoundaryConstraint, PairWiseSpacing
@@ -9,7 +7,6 @@ from wesl.optimizer.offshore_system.wind_system import FixedBottomWindFarm
 # WESL optimizer external dependencies
 import numpy as np
 import openmdao.api as om
-from IPython.display import display
 
 # AEP Calculator: PyWake Dependencies
 from py_wake.literature.gaussian_models import Bastankhah_PorteAgel_2014
@@ -108,7 +105,7 @@ prob.setup()
 prob.run_driver()
 
 # Plotting the farm/cables/substantion layout and water depth
-display(prob.model.OffshoreSystemPlot.fig)
+# display(prob.model.OffshoreSystemPlot.fig)
 
 
 
