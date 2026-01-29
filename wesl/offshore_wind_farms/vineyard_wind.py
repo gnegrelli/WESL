@@ -7,6 +7,8 @@ import pickle as pkl
 import numpy as np
 from py_wake.site._site import UniformWeibullSite
 from py_wake.wind_turbines.generic_wind_turbines import GenericWindTurbine
+from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
+from pixwake import Curve, Turbine
 import os
 
 class SG_14222(GenericWindTurbine):
@@ -15,10 +17,23 @@ class SG_14222(GenericWindTurbine):
                                     power_norm=14000, turbulence_intensity=0.07)
 
 
+class PixSG14222(Turbine):
+    def __init__(self):
+        u, p, ct = standard_power_ct_curve(14000, 222, 0.07, wsp_lst=np.arange(.1, 30, .1))
+
+        super().__init__(
+            rotor_diameter=222,
+            hub_height=150,
+            power_curve=Curve(ws=u, values=p),
+            ct_curve=Curve(ws=u, values=ct),
+        )
+
+
+
 # Site definition using PyWake and Global Wind Atlas
 class VineyardWind(UniformWeibullSite): # Double-check: plot the wind rose
     def __init__(self, ti=0.07, shear=None):
-        f = [6.4633, 7.6414, 6.3740, 5.9969, 4.7711, 4.5698, 
+        f = [6.4633, 7.6414, 6.3740, 5.9969, 4.7711, 4.5698,
              7.3598, 11.8051, 13.2464, 11.0975, 11.1503, 9.5244]
         a = [10.19, 10.45, 9.47, 9.02, 9.48, 9.66, 
              11.44, 13.27, 12.46, 11.36, 12.39, 10.45]

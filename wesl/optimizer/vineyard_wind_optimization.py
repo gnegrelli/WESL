@@ -11,7 +11,9 @@ import openmdao.api as om
 # AEP Calculator: PyWake Dependencies
 from py_wake.literature.gaussian_models import Bastankhah_PorteAgel_2014
 from wesl.utils.plot import get_water_depth_map
-
+from pix_bastankhah import PixBastankhahGaussianDeficit
+from pixwake import Curve, Turbine
+from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
 ##########################################################################################
 ##########################################################################################
 # Box encompassing Revolution Wind
@@ -33,12 +35,23 @@ x_coordinates, y_coordinates = x_vineyard, y_vineyard
 wind_turbines = SG_14222()                              # wind turbine object
 site = VineyardWind()                                   # Uniform Weibull object
 
+u, p, ct = standard_power_ct_curve(14000, 222, 0.07, wsp_lst=np.arange(.1, 30, .1))
+pix_wind_turbines = Turbine(
+    rotor_diameter=222,
+    hub_height=150.0,
+    power_curve=Curve(ws=u, values=p),
+    ct_curve=Curve(ws=u, values=ct)
+)
 
 
-sim_res = Bastankhah_PorteAgel_2014(site,               # Wind farm model        
-                                    wind_turbines, 
-                                    k=0.0324555)
-aep_init = sim_res(x_coordinates, y_coordinates).aep().sum() # AEP initial layout
+sim_res = Bastankhah_PorteAgel_2014(site, wind_turbines, k=0.0324555)
+pywake_result = sim_res(x_coordinates, y_coordinates)
+aep_init = pywake_result.aep().sum() # AEP initial layout
+
+pix_sim_res = PixBastankhahGaussianDeficit(site, pix_wind_turbines, k=0.0324555)
+pixwake_result = pix_sim_res(x_coordinates, y_coordinates)
+pix_aep_init = pixwake_result.aep()  # AEP initial layout using pixwake
+
 ##########################################################################################
 # Defining the OpenMDAO optimization problem
 prob = om.Problem()
