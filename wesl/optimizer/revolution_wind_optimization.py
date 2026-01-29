@@ -106,7 +106,4 @@ prob.setup()
 prob.run_driver()
 
 # Plotting the farm/cables/substantion layout and water depth
-display(prob.model.OffshoreSystemPlot.fig)
-
-
-
+# display(prob.model.OffshoreSystemPlot.fig)

@@ -15,5 +15,5 @@ class PixBastankhahGaussianDeficit(WakeSimulation):
         self.ws = self.ws.flatten()
         self.wd = self.wd.flatten()
 
-    def __call__(self, x, y, *args, **kwargs):
-        return super().__call__(jnp.asarray(x), jnp.asarray(y), jnp.asarray(self.ws), jnp.asarray(self.wd), *args, **kwargs)
+    # def __call__(self, x, y, *args, **kwargs):
+        # return super().__call__(jnp.asarray(x), jnp.asarray(y), jnp.asarray(self.ws), jnp.asarray(self.wd), *args, **kwargs)
