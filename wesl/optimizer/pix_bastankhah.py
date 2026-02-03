@@ -7,8 +7,8 @@ from pixwake.utils import ct2a_mom1d
 
 
 class PixBastankhahGaussianDeficit(WakeSimulation):
-    def __init__(self, site, turbines, k, **kwargs):
-        deficit = BastankhahGaussianDeficit(k, use_effective_ws=True, ct2a=ct2a_mom1d)  # , superposition=LinearSum())
+    def __init__(self, site, turbines, k, use_radius_mask=True, **kwargs):
+        deficit = BastankhahGaussianDeficit(k, use_effective_ws=True, ct2a=ct2a_mom1d, use_radius_mask=use_radius_mask)  # , superposition=LinearSum())
         super().__init__(turbines, deficit, **kwargs)
 
         self.wd, self.ws = jnp.meshgrid(*site.get_defaults())
