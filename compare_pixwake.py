@@ -2,12 +2,15 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
+from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.literature.gaussian_models import Bastankhah_PorteAgel_2014
-from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
+from py_wake.superposition_models import SquaredSum
+from py_wake.wind_farm_models.engineering_models import All2AllIterative
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
 from pixwake import Curve, Turbine
+from pixwake.deficit.gaussian import BastankhahGaussianDeficit as BastankhahGaussianDeficit_PIX
 from pixwake.plot import plot_flow_map
 
 from wesl.optimizer.pix_bastankhah import PixBastankhahGaussianDeficit
@@ -60,20 +63,26 @@ ct_curve = np.stack([ct_pw_ws, ct_vals], axis=1)
 power_curve = np.stack([ct_pw_ws, power_vals], axis=1)
 
 site = VineyardWind()
-x, y = x_vineyard[:1], y_vineyard[:1]
+x, y = x_vineyard[:n_turbines], y_vineyard[:n_turbines]
 
 # PyWake
-windTurbines = _create_pywake_turbines(n_turbines=1, ct_curve=ct_curve, power_curve=power_curve)
+windTurbines = _create_pywake_turbines(n_turbines=n_turbines, ct_curve=ct_curve, power_curve=power_curve)
 
-wf_model = Bastankhah_PorteAgel_2014(site, windTurbines, k=0.0324555)
-sim_res = wf_model(x, y)
+wake_model = BastankhahGaussianDeficit(k=0.0324555)
+wfm = All2AllIterative(
+        site,
+        windTurbines,
+        wake_deficitModel=wake_model,
+        superpositionModel=SquaredSum(),
+    )
+sim_res = wfm(x, y)
 
 #change the wind speed and wind direction to visualize different flow cases
 wsp = 9
-wdir = 270
-flow_map = sim_res.flow_map(grid=None, # defaults to HorizontalGrid(resolution=500, extend=0.2), see below
-                            wd=wdir,
-                            ws=wsp)
+wdir = 90
+flow_map = sim_res.flow_map(grid=None, wd=wdir, ws=wsp)
+
+print(f'PyWake AEP: {sim_res.aep().sum()}\n---')
 
 # PixWake
 pix_windTurbines = _create_pixwake_turbine(ct_curve=ct_curve, power_curve=power_curve)
@@ -81,16 +90,20 @@ pix_windTurbines = _create_pixwake_turbine(ct_curve=ct_curve, power_curve=power_
 pix_wf_model = PixBastankhahGaussianDeficit(site, pix_windTurbines, k=0.0324555)
 pix_flow_map, (pix_flowmap_x, pix_flowmap_y) = pix_wf_model.flow_map(x, y, ws=wsp, wd=wdir)
 
-fig, axs = plt.subplots(1, 2, figsize=(10, 10))
+print(f'PixWake AEP: {pix_wf_model(x, y).aep()}\n---')
 
-flow_map.plot_wake_map(ax = axs[0])
+fig, axs = plt.subplots(1, 2, figsize=(10, 10))
+fig.suptitle('Flowmap for'+ f' {wdir} deg and {wsp} m/s')
+
+flow_map.plot_wake_map(ax = axs[0], cmap='viridis')
 axs[0].set_xlabel('x [m]')
 axs[0].set_ylabel('y [m]')
-axs[0].set_title('PyWake map for'+ f' {wdir} deg and {wsp} m/s')
+axs[0].set_title('PyWake')
+axs[0].set_aspect("equal", adjustable='box')
 
 plot_flow_map(pix_flowmap_x, pix_flowmap_y, pix_flow_map, wt_x=jnp.asarray(x), wt_y=jnp.asarray(y), ax=axs[1])
-axs[0].set_xlabel('x [m]')
-axs[0].set_ylabel('y [m]')
-axs[0].set_title('PixWake map for'+ f' {wdir} deg and {wsp} m/s')
+axs[1].set_xlabel('x [m]')
+axs[1].set_ylabel('y [m]')
+axs[1].set_title('PixWake')
 
 plt.show()
