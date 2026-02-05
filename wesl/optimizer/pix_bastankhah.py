@@ -11,7 +11,8 @@ class PixBastankhahGaussianDeficit(WakeSimulation):
         deficit = BastankhahGaussianDeficit(k, use_effective_ws=True, ct2a=ct2a_mom1d, use_radius_mask=use_radius_mask)  # , superposition=LinearSum())
         super().__init__(turbines, deficit, **kwargs)
 
-        self.wd, self.ws = jnp.meshgrid(*site.get_defaults())
+        _wd, _ws = site.get_defaults()
+        self.ws, self.wd = jnp.meshgrid(_ws, _wd)
         self.ws = self.ws.flatten()
         self.wd = self.wd.flatten()
 
@@ -21,12 +22,12 @@ class PixBastankhahGaussianDeficit(WakeSimulation):
         try:
             ws_amb = list_args.pop(0)
         except IndexError:
-            ws_amb = jnp.asarray(self.ws)
+            ws_amb = self.ws
 
         try:
             wd_amb = list_args.pop(0)
         except IndexError:
-            wd_amb = jnp.asarray(self.wd)
+            wd_amb = self.wd
 
         args = tuple(list_args)
 
