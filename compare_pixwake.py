@@ -79,14 +79,20 @@ wfm = All2AllIterative(
         wake_deficitModel=wake_model,
         superpositionModel=SquaredSum(),
     )
+wfm = Bastankhah_PorteAgel_2014(
+    site,
+    windTurbines,
+    k=wake_expansion_k,
+    superpositionModel=SquaredSum(),
+)
 sim_res = wfm(x, y)
 
 #change the wind speed and wind direction to visualize different flow cases
 wsp = 9
-wdir = 90
+wdir = 270
 flow_map = sim_res.flow_map(grid=None, wd=wdir, ws=wsp)
 
-print(f'PyWake AEP: {sim_res.aep().sum()}\n---')
+print(f'PyWake AEP: {sim_res.aep().sum().values}')
 
 # PixWake
 pix_windTurbines = _create_pixwake_turbine(ct_curve=ct_curve, power_curve=power_curve)
@@ -94,7 +100,7 @@ pix_windTurbines = _create_pixwake_turbine(ct_curve=ct_curve, power_curve=power_
 pix_wf_model = PixBastankhahGaussianDeficit(site, pix_windTurbines, k=wake_expansion_k, use_radius_mask=False)
 pix_flow_map, (pix_flowmap_x, pix_flowmap_y) = pix_wf_model.flow_map(x, y, ws=wsp, wd=wdir)
 
-print(f'PixWake AEP: {pix_wf_model(x, y).aep()}\n---')
+print(f'PixWake AEP: {pix_wf_model(x, y).aep()}')
 
 fig, axs = plt.subplots(1, 2, figsize=(10, 10))
 fig.suptitle('Flowmap for'+ f' {wdir} deg and {wsp} m/s')
@@ -109,14 +115,11 @@ plot_flow_map(pix_flowmap_x, pix_flowmap_y, pix_flow_map, wt_x=jnp.asarray(x), w
 axs[1].set_xlabel('x [m]')
 axs[1].set_ylabel('y [m]')
 axs[1].set_title('PixWake')
+axs[1].get_legend().remove()
 
 print(30*'<>')
 
 cutin_ws = 3.0
-# cutout_ws = 25.0
-# ct_pw_ws = np.arange(0.0, cutout_ws + 1.0, 1.0)
-# ct_curve = np.stack([ct_pw_ws, ct_vals], axis=1)
-# power_curve = np.stack([ct_pw_ws, power_vals], axis=1)
 
 x, y = x_vineyard[:n_turbines], y_vineyard[:n_turbines]
 windTurbines = _create_pywake_turbines(n_turbines, ct_curve, power_curve)
@@ -137,15 +140,15 @@ ws, wd = (
 )
 
 # Doing this gives different results, don't know why yet though
-# ws, wd = site.get_defaults()
-# wd_, ws_ = jnp.meshgrid(*site.get_defaults())
-# ws_ = ws_.flatten()
-# wd_ = wd_.flatten()
+wd, ws = site.get_defaults()
+ws_, wd_ = jnp.meshgrid(ws, wd)
+ws_ = ws_.flatten()
+wd_ = wd_.flatten()
 
 
 start_time = process_time()
-sim_res = wfm(x=x, y=y, wd=wd, ws=ws, time=True)
-# sim_res = wfm(x=x, y=y, time=True)
+# sim_res = wfm(x=x, y=y, wd=wd, ws=ws)
+sim_res = wfm(x=x, y=y)
 print(f"PyWake time: {process_time() - start_time} s")
 pywake_ws_eff = sim_res["WS_eff"].values
 
@@ -157,22 +160,25 @@ turbine = Turbine(
     power_curve=Curve(ws=power_curve[:, 0], values=power_curve[:, 1]),
     ct_curve=Curve(ws=ct_curve[:, 0], values=ct_curve[:, 1]),
 )
-sim = WakeSimulation(turbine, model, fpi_damp=1.0)
+sim = WakeSimulation(turbine, model, fpi_damp=1.0, mapping_strategy="map")
 start_time = process_time()
 pixwake_sim_res = sim(
     jnp.asarray(x),
     jnp.asarray(y),
-    jnp.asarray(ws),
-    jnp.asarray(wd),
+    ws_,
+    wd_,
 )
 print(f"PixWake time: {process_time() - start_time} s")
 print(15 * '~')
+
+P_ilk = site.local_wind(ws=ws, wd=wd).P_ilk
+pix_probs = P_ilk.reshape((1, pixwake_sim_res.effective_ws.shape[0])).T
 
 print(f"PyWake Effective Wind Speed: {np.maximum(pywake_ws_eff, 0).shape}")
 print(f"PixWake Effective Wind Speed: {pixwake_sim_res.effective_ws.T.shape}")
 
 print(f"Pywake AEP: {sim_res.aep().sum().values}")
-print(f"PixWake AEP: {pixwake_sim_res.aep()}")
+print(f"PixWake AEP: {pixwake_sim_res.aep(probabilities=pix_probs)}")
 
 flow_map_ = sim_res.flow_map(grid=None, wd=wdir, ws=wsp)
 pix_flow_map_, (pix_flowmap_x_, pix_flowmap_y_) = sim.flow_map(x, y, ws=wsp, wd=wdir)
@@ -180,7 +186,7 @@ pix_flow_map_, (pix_flowmap_x_, pix_flowmap_y_) = sim.flow_map(x, y, ws=wsp, wd=
 fig_, axs_ = plt.subplots(1, 2, figsize=(10, 10))
 fig_.suptitle('Flowmap for'+ f' {wdir} deg and {wsp} m/s')
 
-flow_map_.plot_wake_map(ax = axs_[0], cmap='viridis')
+flow_map_.plot_wake_map(ax=axs_[0], cmap='viridis')
 axs_[0].set_xlabel('x [m]')
 axs_[0].set_ylabel('y [m]')
 axs_[0].set_title('PyWake')
@@ -190,6 +196,6 @@ plot_flow_map(pix_flowmap_x_, pix_flowmap_y_, pix_flow_map_, wt_x=jnp.asarray(x)
 axs_[1].set_xlabel('x [m]')
 axs_[1].set_ylabel('y [m]')
 axs_[1].set_title('PixWake')
+axs_[1].get_legend().remove()
 
 plt.show()
-
