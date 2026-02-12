@@ -4,15 +4,12 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
-from py_wake.deficit_models.gaussian import BastankhahGaussianDeficit
 from py_wake.literature.gaussian_models import Bastankhah_PorteAgel_2014
 from py_wake.superposition_models import SquaredSum
-from py_wake.wind_farm_models.engineering_models import All2AllIterative
 from py_wake.wind_turbines import WindTurbines
 from py_wake.wind_turbines.power_ct_functions import PowerCtTabular
 
-from pixwake import Curve, Turbine, WakeSimulation
-from pixwake.deficit.gaussian import BastankhahGaussianDeficit as BastankhahGaussianDeficit_PIX
+from pixwake import Curve, Turbine
 from pixwake.plot import plot_flow_map
 
 from wesl.optimizer.pix_bastankhah import PixBastankhahGaussianDeficit
@@ -45,7 +42,7 @@ def _create_pixwake_turbine(ct_curve, power_curve, RD=120.0, HH=100.0):
     )
 
 
-n_turbines = 100
+n_turbines = 200
 
 ct_vals = np.array([
     0.00, 0.00, 0.00, 0.80, 0.79, 0.77, 0.75, 0.72, 0.68, 0.64,
@@ -79,24 +76,26 @@ wfm = Bastankhah_PorteAgel_2014(
     site,
     windTurbines,
     k=wake_expansion_k,
-    superpositionModel=SquaredSum(),
+    # superpositionModel=SquaredSum(),
 )
+mid_time = process_time()
 sim_res = wfm(x, y)
 end_time = process_time()
-print(f'PyWake AEP: {sim_res.aep().sum().values:.6f}. Calculated in {end_time - start_time:.3f} s')
+print(f'PyWake AEP: {sim_res.aep().sum().values:.6f}. Setting up time: {mid_time - start_time:.3f} s. Calculation time {end_time - mid_time:.3f} s')
 
 # PixWake
 pix_windTurbines = _create_pixwake_turbine(ct_curve=ct_curve, power_curve=power_curve)
 
 start_time = process_time()
-pix_wfm = PixBastankhahGaussianDeficit(site, pix_windTurbines, k=wake_expansion_k, use_radius_mask=False, mapping_strategy="map")
+pix_wfm = PixBastankhahGaussianDeficit(site, pix_windTurbines, k=wake_expansion_k, use_radius_mask=False)
+mid_time = process_time()
 pix_sim_res = pix_wfm(x, y)
+end_time = process_time()
 
 P_ilk = site.local_wind().P_ilk
 pix_probs = P_ilk.reshape((1, pix_sim_res.effective_ws.shape[0])).T
-end_time = process_time()
 
-print(f'PixWake AEP: {pix_sim_res.aep(probabilities=pix_probs):.6f}. Calculated in {end_time - start_time:.3f} s')
+print(f'PixWake AEP: {pix_sim_res.aep(probabilities=pix_probs):.6f}. Setting up time: {mid_time - start_time:.3f} s. Calculation time {end_time - mid_time:.3f} s')
 
 # Flow maps
 fig, axs = plt.subplots(1, 2, figsize=(10, 10))

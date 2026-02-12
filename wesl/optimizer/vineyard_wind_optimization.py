@@ -13,6 +13,7 @@ from py_wake.literature.gaussian_models import Bastankhah_PorteAgel_2014
 from wesl.utils.plot import get_water_depth_map
 from pix_bastankhah import PixBastankhahGaussianDeficit
 from pixwake import Curve, Turbine
+from pixwake.superposition import LinearSum
 from py_wake.utils.generic_power_ct_curves import standard_power_ct_curve
 ##########################################################################################
 ##########################################################################################
@@ -48,9 +49,12 @@ sim_res = Bastankhah_PorteAgel_2014(site, wind_turbines, k=0.0324555)
 pywake_result = sim_res(x_coordinates, y_coordinates)
 aep_init = pywake_result.aep().sum() # AEP initial layout
 
-pix_sim_res = PixBastankhahGaussianDeficit(site, pix_wind_turbines, k=0.0324555)
+pix_sim_res = PixBastankhahGaussianDeficit(site, pix_wind_turbines, k=0.0324555, use_radius_mask=False)
 pixwake_result = pix_sim_res(x_coordinates, y_coordinates)
-pix_aep_init = pixwake_result.aep()  # AEP initial layout using pixwake
+P_ilk = site.local_wind().P_ilk
+pix_probs = P_ilk.reshape((1, pixwake_result.effective_ws.shape[0])).T
+
+pix_aep_init = pixwake_result.aep(probabilities=pix_probs)  # AEP initial layout using pixwake
 
 ##########################################################################################
 # Defining the OpenMDAO optimization problem
