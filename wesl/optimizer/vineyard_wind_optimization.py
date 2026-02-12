@@ -60,20 +60,21 @@ pix_aep_init = pixwake_result.aep(probabilities=pix_probs)  # AEP initial layout
 # Defining the OpenMDAO optimization problem
 prob = om.Problem()
 
-prob.model.add_subsystem('FBWF', 
-                         FixedBottomWindFarm(layout_coordinates = np.array([x_coordinates,
-                                                                            y_coordinates]),
-                                             sim_res = Bastankhah_PorteAgel_2014(site, 
-                                                                                 wind_turbines, 
-                                                                                 k=0.0324555), 
-                                            boundary = boundary, 
-                                            lon_grid_fine = water_depth_map_params[0],
-                                            lat_grid_fine = water_depth_map_params[1],
-                                            interpolated_elevation = water_depth_map_params[2],
-                                            plot_lim = np.array([360000, 390000, 4.53E6, 4.56E6]),
-                                            aep_init = aep_init,
-                                            ),
-                         promotes_inputs=['x', 'y'])
+prob.model.add_subsystem(
+    'FBWF', 
+    FixedBottomWindFarm(
+        layout_coordinates = np.array([x_coordinates, y_coordinates]),
+        sim_res = PixBastankhahGaussianDeficit(site, pix_wind_turbines, k=0.0324555, use_radius_mask=False,), 
+        # sim_res_base = Bastankhah_PorteAgel_2014(site, wind_turbines, k=0.0324555),
+        boundary = boundary, 
+        lon_grid_fine = water_depth_map_params[0],
+        lat_grid_fine = water_depth_map_params[1],
+        interpolated_elevation = water_depth_map_params[2],
+        plot_lim = np.array([360000, 390000, 4.53E6, 4.56E6]),
+        aep_init = aep_init,
+    ),
+    promotes_inputs=['x', 'y']
+)
 
 prob.model.add_subsystem('Spacing_Constraint', 
                          PairWiseSpacing(n_turbines = 63, 

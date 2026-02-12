@@ -47,6 +47,9 @@ class FixedBottomWindFarm(om.ExplicitComponent):
                              desc = "Wind farm layout coordinates")
         self.options.declare("sim_res", 
                              desc="xarray from PyWake") # change here to more general
+        
+        # self.options.declare("sim_res_base", 
+        #                      desc="xarray from PyWake") # change here to more general
 
         self.options.declare("n_turbines", 
                              types = int,
@@ -161,7 +164,19 @@ class FixedBottomWindFarm(om.ExplicitComponent):
 
     def compute(self, inputs, outputs):
         print('Entered compute fixedbottomcomponent')
-        outputs['AEP'] = -self.options["sim_res"](inputs['x'], inputs['y']).aep().sum()
+        # print(inputs['x'])
+        # print(inputs['y'])
+        # print(type(inputs['x']))
+        # print(type(inputs['y']))
+
+        sim_res = self.options["sim_res"](inputs['x'], inputs['y'])
+
+        P_ilk = self.options["sim_res"].site.local_wind().P_ilk
+        pix_probs = P_ilk.reshape((1, sim_res.effective_ws.shape[0])).T
+
+        outputs['AEP'] = -sim_res.aep(probabilities=pix_probs) 
+
+        # outputs['AEP'] = -self.options["sim_res"](inputs['x'], inputs['y']).aep().sum()
 
 
         x = inputs['x']
@@ -176,9 +191,10 @@ class FixedBottomWindFarm(om.ExplicitComponent):
         x_coordinates = self.options["layout_coordinates"][0]
         y_coordinates = self.options["layout_coordinates"][1]
 
-        aep_init = -self.options["sim_res"](x_coordinates, y_coordinates).aep().sum() 
-        
-        aep_init = aep_init.item()
+        # aep_init = -self.options["sim_res"](x_coordinates, y_coordinates).aep().sum() 
+        # aep_init = aep_init.item()
+        aep_init = -self.options["aep_init"].item()
+
         spacing_radius = self.options['spacing_diameter'] / 2
 
 
@@ -327,15 +343,22 @@ class FixedBottomWindFarm(om.ExplicitComponent):
         x,y =inputs['x'], inputs['y']
 
         # Compute exact gradients (PyWake)
-        daep = sim_res.aep_gradients(
-            gradient_method=autograd,
-            wrt_arg=['x', 'y'],
-            x = x,
-            y = y
+        # daep_ = self.options["sim_res_base"].aep_gradients(
+        #     gradient_method=autograd,
+        #     wrt_arg=['x', 'y'],
+        #     x = x,
+        #     y = y
+        # )
+
+        _, daep = sim_res.aep_gradients_chunked(
+            x,
+            y,
+            sim_res.ws,
+            sim_res.wd,
         )
 
-        daep_x = daep[0, :]
-        daep_y = daep[1, :]
+        daep_x = daep[0]
+        daep_y = daep[1]
 
         # Fill OpenMDAO Jacobian
         partials['AEP', 'x'] = -daep_x  # shape (n_turbines,)
