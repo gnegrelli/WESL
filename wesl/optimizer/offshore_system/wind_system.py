@@ -340,7 +340,10 @@ class FixedBottomWindFarm(om.ExplicitComponent):
 
     def compute_partials(self, inputs, partials):        
         sim_res = self.options["sim_res"]
-        x,y =inputs['x'], inputs['y']
+        x, y = inputs['x'], inputs['y']
+
+        P_ilk = sim_res.site.local_wind().P_ilk
+        pix_probs = P_ilk.reshape((sim_res(x, y).effective_ws.shape[0],)).T
 
         # Compute exact gradients (PyWake)
         # daep_ = self.options["sim_res_base"].aep_gradients(
@@ -355,6 +358,7 @@ class FixedBottomWindFarm(om.ExplicitComponent):
             y,
             sim_res.ws,
             sim_res.wd,
+            probabilities=pix_probs,
         )
 
         daep_x = daep[0]
